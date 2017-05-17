@@ -2,9 +2,11 @@
 import roslib
 import rospy
 from nav_msgs.msg import Odometry
+
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamped
 from sensor_msgs.msg import Joy
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
+
 
 
 import math
@@ -15,17 +17,17 @@ class GoToGoal(object):
     initialize=True
 
     ## PID constants
-    Del_T = 100.0   # time step in ms
-    P_ang = 100.0
-    D_ang = 10.0
-    P_lin = 100.0
-    D_lin = 10.0
-    Lin_vel_thres = 400.0 # max 660
-    Ang_vel_thres = 400.0 # max 660
+    del_T = 100.0   # time step in ms
+    p_ang = 100.0
+    d_ang = 10.0
+    p_lin = 100.0
+    d_lin = 10.0
+    lin_vel_thres = 400.0 # max 660
+    ang_vel_thres = 400.0 # max 660
     bias = 1024.0
-    Pre_ang_error = 0.0
-    Pre_x_error = 0.0
-    Pre_y_error = 0.0
+    pre_ang_error = 0.0
+    pre_x_error = 0.0
+    pre_y_error = 0.0
 
     def __init__(self, nodename):
         heading_threshold=3*math.pi/180
@@ -38,7 +40,7 @@ class GoToGoal(object):
 
         self.cmd_vel_pub=rospy.Publisher("/vel_cmd", Twist, queue_size=10)
 
-        r = rospy.Rate(10)
+        r = rospy.Rate(1/self.del_T*1000)
 
         while not rospy.is_shutdown():
 
@@ -59,57 +61,55 @@ class GoToGoal(object):
 
 
     def rotate(self, angle):
-        global Pre_ang_error
-        msg=Twist()
+        msg=Joy()
         
-
         ang_error=math.atan2(math.sin(angle-self.yaw0), math.cos(angle-self.yaw0))
-        derivative = (ang_error - Pre_ang_error) / Del_T
-        angular_vel = (P_ang * ang_error) + (D_ang * derivative)
+        derivative = (ang_error - self.pre_ang_error) / self.del_T
+        angular_vel = (self.p_ang * ang_error) + (self.d_ang * derivative)
 
         # if abs(ang_error)<math.pi:
         #     msg.angular.z=1024+angular_vel
         # else:
         #     msg.angular.z=1024-angular_vel
 
-        if angular_vel > Ang_vel_thres:
-            angular_vel = Ang_vel_thres
-        elif angular_vel < -Ang_vel_thres:
-            angular_vel = -Ang_vel_thres
+        if angular_vel > self.ang_vel_thres:
+            angular_vel = self.ang_vel_thres
+        elif angular_vel < -self.ang_vel_thres:
+            angular_vel = -self.ang_vel_thres
+        theta = self.bias + angular_vel
 
-        msg.angular.z = bias + angular_vel
+        msg.buttons = [self.bias, self.bias, theta]
         self.cmd_vel_pub.publish(msg)
-        Pre_ang_error = ang_error
+        self.pre_ang_error = ang_error
 
     def translate(self, x_target, y_target):
-        global Pre_x_error, Pre_y_error
-        msg=Twist()
+        msg=Joy()
         # vel=200 #must be small to avoid jerking, and secondly to avoid switching surface
         # distance_threshold=0.1
 
         x_error=(x_target-self.x0)*math.cos(self.yaw0)+(y_target-self.y0)*math.sin(self.yaw0)
         y_error=-(x_target-self.x0)*math.sin(self.yaw0)+(y_target-self.y0)*math.cos(self.yaw0)
-        x_derivative = (x_error - Pre_x_error) / Del_T
-        y_derivative = (y_error - Pre_y_error) / Del_T
+        x_derivative = (x_error - self.pre_x_error) / self.del_T
+        y_derivative = (y_error - self.pre_y_error) / self.del_T
 
-        x_linear_vel = (P_lin * x_error) + (D_lin * x_derivative)
-        if x_linear_vel > Lin_vel_thres:
-            x_linear_vel = Lin_vel_thres
-        elif x_linear_vel < -Lin_vel_thres
-            x_linear_vel = -Lin_vel_thres
+        x_linear_vel = (self.p_lin * x_error) + (self.d_lin * x_derivative)
+        if x_linear_vel > self.lin_vel_thres:
+            x_linear_vel = self.lin_vel_thres
+        elif x_linear_vel < -self.lin_vel_thres:
+            x_linear_vel = -self.lin_vel_thres
+        x = self.bias + x_linear_vel
 
-        y_linear_Vel = (P_lin * y_error) + (D_lin * y_derivative)
-        if y_linear_vel > Lin_vel_thres:
-            y_linear_vel = Lin_vel_thres
-        elif y_linear_vel < -Lin_vel_thres
-            y_linear_vel = -Lin_vel_thres
+        y_linear_vel = (self.p_lin * y_error) + (self.d_lin * y_derivative)
+        if y_linear_vel > self.lin_vel_thres:
+            y_linear_vel = self.lin_vel_thres
+        elif y_linear_vel < -self.lin_vel_thres:
+            y_linear_vel = -self.lin_vel_thres
+        y = self.bias + y_linear_vel
 
-
-        msg.linear.x = bias + x_linear_vel
-        msg.linear.y = bias + y_linear_vel
+        msg.buttons = [x, y, self.bias]
         self.cmd_vel_pub.publish(msg)
-        Pre_x_error = x_error
-        Pre_y_error = y_error
+        self.pre_x_error = x_error
+        self.pre_y_error = y_error
 
     def odom_callback(self, msg):
 
@@ -132,6 +132,5 @@ if __name__ == '__main__':
     except rospy.ROSInterruptException:
         rospy.loginfo("Go to goal finished.")
 
-if __name__ == '__main__':
 
 
