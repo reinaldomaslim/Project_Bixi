@@ -13,10 +13,10 @@ import math
 class GoToGoal(object):
     x0, y0, yaw0= 0, 0, 0
     goal_des=[0, 0, 0]
-    initialize=False
+    initialize=True
 
     def __init__(self, nodename):
-        heading_threshold=3*math.pi/180
+        heading_threshold=5*math.pi/180
 
         rospy.init_node('go_to_goal')
 
@@ -43,28 +43,28 @@ class GoToGoal(object):
     def goal_callback(self, msg):
 
         #store target goal as private variable
-        _, _, yaw_des = euler_from_quaternion((msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w))
-        self.goal_des=[msg.pose.pose.position.x, msg.pose.pose.position.y, yaw_des]
+        _, _, yaw_des = euler_from_quaternion((msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w))
+        self.goal_des=[msg.pose.position.x, msg.pose.position.y, yaw_des]
 
 
     def rotate(self, angle):
         msg=Joy()
-        angular_vel=200 #max is 660
+        angular_vel=100 #max is 660
 
         ang_error=math.atan2(math.sin(angle-self.yaw0), math.cos(angle-self.yaw0))
         print(ang_error*180/math.pi)
-        if abs(ang_error)<math.pi:
-            msg.buttons=[1024+angular_vel, 1024, 1024]
-        else:
+        if ang_error>0:
             msg.buttons=[1024-angular_vel, 1024, 1024]
+        else:
+            msg.buttons=[1024+angular_vel, 1024, 1024]
         
         self.cmd_vel_pub.publish(msg)
         
 
     def translate(self, x_target, y_target):
         msg=Joy()
-        vel=200 #must be small to avoid jerking, and secondly to avoid switching surface
-        distance_threshold=0.1
+        vel=150 #must be small to avoid jerking, and secondly to avoid switching surface
+        distance_threshold=0.05
         x_error=(x_target-self.x0)*math.cos(self.yaw0)+(y_target-self.y0)*math.sin(self.yaw0)
         y_error=-(x_target-self.x0)*math.sin(self.yaw0)+(y_target-self.y0)*math.cos(self.yaw0)
         print("translate")
@@ -81,9 +81,9 @@ class GoToGoal(object):
 
         if abs(y_error)>distance_threshold:
             if y_error>0:
-                vy=1024+vel
-            else:
                 vy=1024-vel
+            else:
+                vy=1024+vel
         else:
             vy=1024
 

@@ -53,7 +53,7 @@ class FindEdges(object):
         laserGrid=np.zeros((size, size), dtype=np.uint8)
 
         if self.isUpsideDown is True:
-            for i in range(len(msg.ranges)):
+            for i in range(len(msg.ranges)-90):
                 
                 if msg.ranges[i]<window_length/2:
                     theta=3*math.pi/4-i*msg.angle_increment
@@ -163,8 +163,8 @@ class FindEdges(object):
                     center_x=edge_x-self.box_length*math.cos(direction)/2
                     center_y=edge_y-self.box_length*math.sin(direction)/2
                     msg.header.frame_id="odom"
-                    msg.pose.position.x = edge_x
-                    msg.pose.position.y = edge_y
+                    msg.pose.position.x = center_x
+                    msg.pose.position.y = center_y
                     q_angle = quaternion_from_euler(0, 0, direction)
                     msg.pose.orientation = Quaternion(*q_angle)
                     self.box_pose_pub.publish(msg)

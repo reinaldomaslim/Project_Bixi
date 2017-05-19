@@ -18,27 +18,27 @@ class GoToGoal(object):
 
     ## PID constants
     del_T = 100.0   # time step in ms
-    p_ang = 100.0
-    d_ang = 10.0
-    p_lin = 100.0
-    d_lin = 10.0
-    lin_vel_thres = 400.0 # max 660
-    ang_vel_thres = 400.0 # max 660
+    p_ang = 600.0
+    d_ang = 300.0
+    p_lin = 600.0
+    d_lin = 300.0
+    lin_vel_thres = 200.0 # max 660
+    ang_vel_thres = 200.0 # max 660
     bias = 1024.0
     pre_ang_error = 0.0
     pre_x_error = 0.0
     pre_y_error = 0.0
 
     def __init__(self, nodename):
-        heading_threshold=3*math.pi/180
+        heading_threshold=5*math.pi/180
 
         rospy.init_node('go_to_goal')
 
-        rospy.Subscriber("/odometry/filtered", Odometry, self.odom_callback, queue_size = 50)
+        rospy.Subscriber("/odometry", Odometry, self.odom_callback, queue_size = 50)
         rospy.sleep(1)
         rospy.Subscriber("/target_goal", PoseStamped, self.goal_callback , queue_size=10)
 
-        self.cmd_vel_pub=rospy.Publisher("/vel_cmd", Twist, queue_size=10)
+        self.cmd_vel_pub=rospy.Publisher("/vel_cmd", Joy, queue_size=10)
 
         r = rospy.Rate(1/self.del_T*1000)
 
@@ -51,13 +51,14 @@ class GoToGoal(object):
                 #else translate to goal    
                 self.translate(self.goal_des[0], self.goal_des[1])
 
+
             r.sleep()
 
     def goal_callback(self, msg):
 
         #store target goal as private variable
-        _, _, yaw_des = euler_from_quaternion((msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w))
-        self.goal_des=[msg.pose.pose.position.x, msg.pose.pose.position.y, yaw_des]
+        _, _, yaw_des = euler_from_quaternion((msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w))
+        self.goal_des=[msg.pose.position.x, msg.pose.position.y, yaw_des]
 
 
     def rotate(self, angle):
@@ -76,10 +77,13 @@ class GoToGoal(object):
             angular_vel = self.ang_vel_thres
         elif angular_vel < -self.ang_vel_thres:
             angular_vel = -self.ang_vel_thres
-        theta = self.bias + angular_vel
 
-        msg.buttons = [self.bias, self.bias, theta]
+
+        theta = self.bias - angular_vel
+
+        msg.buttons = [theta, self.bias, self.bias]
         self.cmd_vel_pub.publish(msg)
+        
         self.pre_ang_error = ang_error
 
     def translate(self, x_target, y_target):
@@ -89,10 +93,13 @@ class GoToGoal(object):
 
         x_error=(x_target-self.x0)*math.cos(self.yaw0)+(y_target-self.y0)*math.sin(self.yaw0)
         y_error=-(x_target-self.x0)*math.sin(self.yaw0)+(y_target-self.y0)*math.cos(self.yaw0)
+
+
         x_derivative = (x_error - self.pre_x_error) / self.del_T
         y_derivative = (y_error - self.pre_y_error) / self.del_T
-
+        
         x_linear_vel = (self.p_lin * x_error) + (self.d_lin * x_derivative)
+        
         if x_linear_vel > self.lin_vel_thres:
             x_linear_vel = self.lin_vel_thres
         elif x_linear_vel < -self.lin_vel_thres:
@@ -106,10 +113,13 @@ class GoToGoal(object):
             y_linear_vel = -self.lin_vel_thres
         y = self.bias + y_linear_vel
 
-        msg.buttons = [x, y, self.bias]
+
+        msg.buttons = [self.bias, x, -y]
         self.cmd_vel_pub.publish(msg)
+
         self.pre_x_error = x_error
         self.pre_y_error = y_error
+
 
     def odom_callback(self, msg):
 
