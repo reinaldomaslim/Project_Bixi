@@ -20,8 +20,9 @@ class MissionPlanner(object):
     angle_tolerance=5*math.pi/180
     
     #stores ideal positions of boxes
-    pushing_pos=[]
-    stacking_pos=[]
+    pushing_pos=[[1.5, 1.5], [1.5, 0.8]]
+    stacking_pos=[[2.5, 0.8], [2.5, -0.2]]
+
     desired_heading=0 #desired hole normal is opposite
 
     #stores detected boxes
@@ -33,16 +34,18 @@ class MissionPlanner(object):
     limit_switch=False
 
     #offset for pushing
-    push_off=[0.363, -0.242]
+    push_off=[0.38, -0.15]
 
     #offset for stacking
     stack_off=[0.453, 0.078]
+
+    previous_n_cluster=0
+    n_cluster_counter=0
 
 
     def __init__(self, nodename):        
         rospy.init_node('mission_planner')
         #initialise ideal positions 
-        self.initialise_pos()
 
         rospy.Subscriber("/odometry", Odometry, self.odom_callback, queue_size = 50)
         #rospy.Subscriber("/limit_switch", Bool, self.limit_switch_callback, queue_size = 10)
@@ -51,71 +54,77 @@ class MissionPlanner(object):
         self.target_goal_pub=rospy.Publisher("/target_goal", PoseStamped, queue_size=10)
         #self.stack_pub=rospy.Publisher("/stack", Bool, queue_size=5)
         self.cmd_vel_pub=rospy.Publisher("/vel_cmd", Joy, queue_size=10)
-        self.box_pose_pub=rospy.Publisher("/box_center", PoseStamped, queue_size=20)
+        #self.box_pose_pub=rospy.Publisher("/box_center", PoseStamped, queue_size=20)
 
         push_index=0
         stack_index=0
 
         while not rospy.is_shutdown():
             #if still have boxes to be pushed, push according to list
-            if len(self.pushing_pos) != push_index:
-                if push_index!=len(self.pushing_pos)-1:
-                    self.push_box(self.pushing_pos[push_index],  self.stacking_pos[push_index], True)
-                else:
-                    self.push_box(self.pushing_pos[push_index],  self.stacking_pos[push_index], True)
-                #delete this estimated position from list
+            if push_index<len(self.pushing_pos):    
+                self.push_box(self.pushing_pos[push_index],  self.stacking_pos[push_index], True)
                 push_index+=1
 
-            #else:
-                #if no more boxes to be pushed, perform stacking 
-            #    if stack_index<5:
-            #        self.stack_box(self.stacking_pos[len(self.stack_box-stack_index-1])
+            # else:
+            #     #if no more boxes to be pushed, perform stacking 
+            #     if stack_index<2:
+            #        self.stack_box(self.stacking_pos[stack_index])
             #        stack_index+=1
-            #    else:
-                    #hopefully we've got 10 boxes
-            #        break
-            #print(self.clustered_box_centers)
-            #print(len(self.clustered_box_centers))
-            #print(len(self.clustered_box_centers), len(self.clustered_box_headings))
+            #     else:
+            #         #hopefully we've got 10 boxes
+            #         break
             
             rospy.sleep(0.1)
-
-    def initialise_pos(self):
-        #store 8 expected positions
-        self.pushing_pos.append([1.5, 0.8])
-        self.stacking_pos.append([2.5, -0.5])
-
-        self.pushing_pos.append([1.5, 1.6])
-        self.stacking_pos.append([2.5, 0.3])
 
     def push_box(self, est_pos, dest_pos, with_return=True):
         #go to some distance from estimated position of box
         d=0.5
         goal_1=self.offset_to_center([est_pos[0]-d*math.cos(self.desired_heading), est_pos[1]-d*math.sin(self.desired_heading)], self.desired_heading, self.push_off)
+        print("goal 1")
         print(goal_1)
         self.go_to_goal(goal_1)
+        
 
+        d=0.4
         #match laser detected boxes
         k=self.match(est_pos)
-        #align to real position
-        d=0.1        
-        goal_2=self.offset_to_center([k[0][0]-d*math.cos(self.desired_heading), k[0][1]-d*math.sin(self.desired_heading)], k[1], self.push_off)
+        print(k)
+        #align to real position        
+        goal_2=self.offset_to_center([k[0][0]-d*math.cos(k[1]), k[0][1]-d*math.sin(k[1])], k[1], self.push_off)
+        print("goal 2")
         print(goal_2)
         self.go_to_goal(goal_2)
 
-
-        #push to a distance forward
-        #real pos index
-        k=self.match(est_pos)
-        d=-0.5        
-        goal_3=self.offset_to_center([k[0][0]-d*math.cos(self.desired_heading), k[0][1]-d*math.sin(self.desired_heading)], k[1], self.push_off)
+        goal_3=self.offset_to_center([k[0][0], k[0][1]], k[1], self.push_off)
+        print("goal 3")
         print(goal_3)
-        self.go_to_goal(goal_3)        
+        self.go_to_goal(goal_3)
 
-        #push to final destination position
-        goal_4=self.offset_to_center([dest_pos[0], dest_pos[1]], self.desired_heading, self.push_off)
+        #push to a distance forward in the direction of box
+        #k=self.match(est_pos)
+        d=-0.8        
+        goal_4=self.offset_to_center([k[0][0]-d*math.cos(k[1]), k[0][1]-d*math.sin(k[1])], k[1], self.push_off)
+        print("goal 4")
         print(goal_4)
         self.go_to_goal(goal_4)        
+
+        d=0.5
+        goal_5=self.offset_to_center([dest_pos[0]-d*math.cos(self.desired_heading), dest_pos[1]-d*math.sin(self.desired_heading)], self.desired_heading, self.push_off)
+        print("goal 5")
+        print(goal_5)
+        self.go_to_goal(goal_5)  
+
+        #push to final destination position
+        goal_6=self.offset_to_center([dest_pos[0], dest_pos[1]], self.desired_heading, self.push_off)
+        print("goal 6")
+        print(goal_6)
+        self.go_to_goal(goal_6)   
+
+        d=0.5
+        goal_7=self.offset_to_center([dest_pos[0]-d*math.cos(self.desired_heading), dest_pos[1]-d*math.sin(self.desired_heading)], self.desired_heading, self.push_off)
+        print("goal 7")
+        print(goal_7)
+        self.go_to_goal(goal_7)       
 
         #return if needed
         if with_return is True:
@@ -137,31 +146,43 @@ class MissionPlanner(object):
         self.go_to_goal(goal_1)
 
         #match laser detected boxes
-        real_pos=self.match(est_pos)
+        k=self.match(est_pos)
 
         #align to real position
         d=0.2
-        goal_2=[real_pos[0]+d*math.cos(self.desired_heading-math.pi/2), 
-                real_pos[1]+d*math.sin(self.desired_heading-math.pi/2), 
-                self.desired_heading]
+        goal_2=[k[0][0]+d*math.cos(self.desired_heading-math.pi/2), 
+                k[0][1]+d*math.sin(self.desired_heading-math.pi/2), 
+                k[1]]
         self.go_to_goal(goal_2)
 
+
+
         #move until limit switches touches
-        goal_3=[real_pos[0],
-                real_pos[1],
-                self.desired_heading]
+        k=self.match(est_pos)
+
+        #align to real position
+        d=0.3
+        goal_3=[k[0][0]+d*math.cos(self.desired_heading-math.pi/2), 
+                k[0][1]+d*math.sin(self.desired_heading-math.pi/2), 
+                k[1]]
         self.go_to_goal(goal_3)
-        self.takein_box(goal_3)
-    
+        
+        d=-0.1
+        goal_4=[k[0][0]+d*math.cos(self.desired_heading-math.pi/2), 
+                k[0][1]+d*math.sin(self.desired_heading-math.pi/2), 
+                k[1]]
+        self.go_to_goal(goal_4)
+
+        rospy.sleep(10)
 
         #take another one on the side
-        real_pos=self.match(est_pos)
+        # real_pos=self.match(est_pos)
 
-        goal_4=[real_pos[0],
-                real_pos[1],
-                self.desired_heading]
-        self.go_to_goal(goal_4)
-        self.takein_box(goal_4)
+        # goal_4=[real_pos[0],
+        #         real_pos[1],
+        #         self.desired_heading]
+        # self.go_to_goal(goal_4)
+        # self.takein_box(goal_4)
 
     def takein_box(self):
         #move until limit switches touches
@@ -183,30 +204,65 @@ class MissionPlanner(object):
 
     def match(self, box_pos):
         #find nearest real box with respect to expected position
-        # and check if within tolerance, if cannot find, sleep a while until box seen.
+        # and check if within tolerance
         
         tolerance=0.3
         min_length=100
         box_found=False
-        # while box_found is False and not rospy.is_shutdown():
-        #     #if self.clustered_box_headings is None or self.clustered_box_centers is None:
+        index=0
 
-        #     #continue
+        #while box_found is False:
+        #    min_length=100
+        while len(self.clustered_box_centers)!=len(self.clustered_box_headings):
+            rospy.sleep(1)
 
-        while len(self.clustered_box_centers)==0:
-            rospy.sleep(0.1)
 
-        for i in range(len(self.clustered_box_centers)):
+        for i in range(len(self.clustered_box_headings)):
             d=math.sqrt((self.clustered_box_centers[i][0]-box_pos[0])**2+(self.clustered_box_centers[i][1]-box_pos[1])**2)
-            nearest_box_index=i
+
+            if d<min_length:
+                index=i
+                min_length=d
+
+        print(index)
+        print(len(self.clustered_box_centers), len(self.clustered_box_headings))
+        #    if index is None:
+                #rotate
+                #self.see_around()
+
+            #     continue
+            # else:
+            #     if len(self.clustered_box_centers)<=index or len(self.clustered_box_headings)<=index:
+            #         #rotate and match again
+            #         #self.see_around()
+            #         continue
+            #     else:
+            #         box_found=True
+            #         break
 
         #if min_length<tolerance:            
-        return self.clustered_box_centers[nearest_box_index], self.clustered_box_headings[nearest_box_index]
+        return self.clustered_box_centers[index], self.clustered_box_headings[index]
         #else:
         #    return 
 
+    def see_around(self):
+        goal=[self.x0, 
+              self.y0, 
+              self.yaw0+math.pi/6]
+        self.go_to_goal(goal)
+
+        goal=[self.x0, 
+              self.y0, 
+              self.yaw0-math.pi/6]
+        self.go_to_goal(goal)
+
+        goal=[self.x0, 
+              self.y0, 
+              self.yaw0]
+        self.go_to_goal(goal)
+
     def edgeCallback(self, msg):
-        n_edge=100
+        n_edge=80
         #for a detected edge, add it into the list. If list is full, replace the first element.
         if len(self.box_centers)==n_edge:
             #remove the first element
@@ -222,14 +278,27 @@ class MissionPlanner(object):
 
         #perform clustering to edges
         X=np.asarray(self.box_centers)
-        db = DBSCAN(eps=0.5, min_samples=5).fit(X)
+        db = DBSCAN(eps=0.5, min_samples=10).fit(X)
         
         core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
         core_samples_mask[db.core_sample_indices_] = True
         labels = db.labels_
         
         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-    
+        if n_clusters_==0:
+            return
+
+        #if no of clusters less than previous, don't update and iterate count
+        if n_clusters_<self.previous_n_cluster:
+            self.n_cluster_counter+=1
+            if self.n_cluster_counter>20:
+                self.previous_n_cluster=n_clusters_
+                self.n_cluster_counter=0
+                print(n_clusters_)
+            return
+        else:
+            self.previous_n_cluster=n_clusters_
+
         clusters = [X[labels == i] for i in range(n_clusters_)]
 
         heading_cluster=[]
@@ -249,12 +318,12 @@ class MissionPlanner(object):
                     heading_list.append(self.box_headings[j])
             mean_heading=np.mean(heading_list)
             heading_cluster.append(mean_heading)
-        print(heading_cluster)
+        #print(heading_cluster)
         #print(self.clustered_box_headings)
         #print(self.clustered_box_centers)
 
         self.clustered_box_headings=heading_cluster
-        self.printBox()
+        
 
     def get_heading(self, direction):
         heading=self.correct_range(direction-self.desired_heading)
