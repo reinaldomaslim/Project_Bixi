@@ -23,10 +23,10 @@ class GoToGoal(object):
     p_ang = 600.0
     i_ang = 0.0
     d_ang = 300.0
-    p_lin = 400.0
+    p_lin = 200.0
     i_lin = 1.0
-    d_lin = 370.0
-    lin_vel_thres = 230.0 # max 660
+    d_lin = 200.0
+    lin_vel_thres = 400.0 # max 660
     ang_vel_thres = 200.0 # max 660
     bias = 1024.0
     pre_ang_error = 0.0
@@ -35,7 +35,7 @@ class GoToGoal(object):
     ang_integral = 0.0
     x_integral = 0.0
     y_integral = 0.0
-    lin_integral_threshold = 50.0
+    lin_integral_threshold = 60.0
     ang_integral_threshold = 50.0
 
     heartbeat = Bool()
@@ -57,7 +57,7 @@ class GoToGoal(object):
         r = rospy.Rate(1/self.del_T*1000)
 
         while not rospy.is_shutdown():
-
+            print(self.goal_des)
             #if direction not similar, rotate
             if abs(self.yaw0-self.goal_des[2])>heading_threshold:
                 self.rotate(self.goal_des[2])
@@ -102,7 +102,7 @@ class GoToGoal(object):
 
         theta = self.bias - angular_vel
 
-        msg.buttons = [theta, self.bias, self.bias]
+        msg.buttons = [self.bias, self.bias, theta]
         #self.heartbeat_pub.publish(heartbeat)
         #sleep(heartbeat_time);
         self.cmd_vel_pub.publish(msg)
@@ -156,7 +156,7 @@ class GoToGoal(object):
             y_linear_vel = self.lin_vel_thres
         elif y_linear_vel < -self.lin_vel_thres:
             y_linear_vel = -self.lin_vel_thres
-        y = self.bias + y_linear_vel
+        y = self.bias - y_linear_vel
 
         angular_vel = (self.p_ang * ang_error) + (self.d_ang * ang_derivative) + (self.i_ang * self.ang_integral)
         if angular_vel > self.ang_vel_thres:
@@ -165,7 +165,7 @@ class GoToGoal(object):
             angular_vel = -self.ang_vel_thres
         theta = self.bias - angular_vel
 
-        msg.buttons = [theta, x, -y]
+        msg.buttons = [x, y, theta]
         #self.heartbeat_pub.publish(heartbeat)
         #sleep(heartbeat_time);
         self.cmd_vel_pub.publish(msg)

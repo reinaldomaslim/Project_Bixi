@@ -1,0 +1,17 @@
+<launch>
+	<arg name="namespace" default="front_cam"/>
+	<arg name="image" default="2.jpg"/>
+	<arg name="output" default="image_rect_color"/>
+	<group ns="$(arg namespace)">
+		<node
+			pkg="base_vision"
+			type="image_publisher"
+			name="image"
+			required="true"
+			output="screen"
+		>
+		<param name="image_file" value="/home/echo/Desktop/VMShare/$(arg image)"/>
+		<param name="output" value="$(arg output)"/>
+		</node>
+	</group>
+</launch>

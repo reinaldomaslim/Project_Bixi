@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Project_Bixi
 ============
 Bixi robot for ICAR Robomasters 2017 competition
@@ -51,3 +52,7 @@ Reference and repositories
     [reference2/pdf](https://pdfs.semanticscholar.org/f971/36b372f36a588373142e17e8b68f6994227e.pdf);
     [reference3/pdf](http://download.makeblock.com/Mecanumbot/pdf%E9%BA%A6%E8%BD%AE%E4%B8%AD%E5%9E%8B%E5%BA%95%E7%9B%98%E6%90%AD%E5%BB%BA%E6%95%99%E7%A8%8B%20%EF%BC%88%E5%8F%8C%E6%9D%BF%20%EF%BC%89.pdf);
     [reference4/arduino](https://github.com/Makeblock-official/Mecanum-Wheel-Robot-Kit/blob/master/Mecanum_chassis_new/Mecanum_chassis_new.ino)
+=======
+# DJI_Arduino
+ICRUA ROBOT rosconnection with arduino
+>>>>>>> fcfd1b76a0f4ea13efdc11420a6f5b5e9534ba7a

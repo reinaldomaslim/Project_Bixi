@@ -54,9 +54,9 @@ class GoToGoal(object):
         ang_error=math.atan2(math.sin(angle-self.yaw0), math.cos(angle-self.yaw0))
         print(ang_error*180/math.pi)
         if ang_error>0:
-            msg.buttons=[1024-angular_vel, 1024, 1024]
+            msg.buttons=[1024, 1024, 1024-angular_vel]
         else:
-            msg.buttons=[1024+angular_vel, 1024, 1024]
+            msg.buttons=[1024, 1024, 1024+angular_vel]
         
         self.cmd_vel_pub.publish(msg)
         
@@ -87,7 +87,7 @@ class GoToGoal(object):
         else:
             vy=1024
 
-        msg.buttons=[1024, vx, vy]
+        msg.buttons=[vx, vy, 1024]
         
         self.cmd_vel_pub.publish(msg)
 

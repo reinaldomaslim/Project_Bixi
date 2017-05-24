@@ -1,0 +1,15 @@
+<launch>
+	<arg name="namespace" default="front_cam"/>
+	<arg name="video" default="box.mp4"/>
+	<group ns="$(arg namespace)">
+		<node
+			pkg="base_vision"
+			type="video_publisher"
+			name="video_publisher"
+			required="true"
+			output="screen"
+		>
+		<param name="video_file" value="/home/echo/Desktop/VMShare/$(arg video)"/>
+		</node>
+	</group>
+</launch>

@@ -1,0 +1,18 @@
+<launch>
+	<arg name="debug" default="true"/>
+
+	<group>
+		<node
+			pkg="base_vision"
+			type="arrow"
+			name="arrow"
+			required="true"
+			output="screen"
+		>
+		<param name="subscribed_image_topic" value="image_rect_color"/>
+		<param name="debug" value="$(arg debug)"/>
+		<param name="published_topic" value="arrow"/>
+
+		</node>
+	</group>
+</launch>

@@ -1,0 +1,21 @@
+<launch>
+	<arg name="namespace" default="front_cam"/>
+	<arg name="color" default="blue"/>
+	<arg name="debug" default="true"/>
+
+	<group ns="$(arg namespace)">
+		<node
+			pkg="base_vision"
+			type="armor_detection"
+			name="armor_detection"
+			required="true"
+			output="screen"
+		>
+		<param name="subscribed_image_topic" value="image_rect_color"/>
+		<param name="armor_color" value="$(arg color)"/>
+		<param name="debug" value="$(arg debug)"/>
+		<param name="published_topic" value="roi"/>
+
+		</node>
+	</group>
+</launch>

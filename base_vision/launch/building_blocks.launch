@@ -1,0 +1,19 @@
+<launch>
+	<arg name="namespace" default="front_cam"/>
+	<arg name="debug" default="true"/>
+
+	<group ns="$(arg namespace)">
+		<node
+			pkg="base_vision"
+			type="building_blocks"
+			name="building_blocks"
+			required="true"
+			output="screen"
+		>
+		<param name="subscribed_image_topic" value="image_rect_color"/>
+		<param name="debug" value="$(arg debug)"/>
+		<param name="published_topic" value="destination"/>
+
+		</node>
+	</group>
+</launch>
