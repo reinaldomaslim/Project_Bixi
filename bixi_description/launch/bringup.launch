@@ -1,0 +1,13 @@
+<launch>
+
+    <!-- Load arduinos via dji_ros-->
+    <include file="$(find dji_ros)/launch/dji_ros_launch.launch" />
+
+    <!-- Load lms1xx lidar-->
+    <include file="$(find lms1xx)/launch/LMS1xx.launch" />
+
+    <!-- Load tf description publisher-->
+    <node name="tf_broadcaster" pkg="bixi_description" type="tf_broadcaster.py" respawn="true"/>
+  
+  
+</launch>

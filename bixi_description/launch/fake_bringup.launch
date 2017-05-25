@@ -1,13 +1,13 @@
 <launch>
-  <param name="/use_sim_time" value="false" />
 
-  <!-- Load the robot description -->
-  <include file="$(find description)/launch/description.launch" />
-    
-  <!--node name="arbotix" pkg="arbotix_python" type="arbotix_driver" output="screen" clear_params="true">
-      <rosparam file="$(find robotx_bringup)/config/fake_wamv_arbotix.yaml" command="load" />
-      <param name="sim" value="true"/>
-  </node-->
+    <!-- Load arduinos via dji_ros-->
+    <include file="$(find description)/launch/description.launch" />
+
+    <!-- Load lmsxx lidar-->
+
+    <!-- Load dji ros, dji_ros_launch.py-->
+
+
   
   
 </launch>
