@@ -11,7 +11,7 @@ import math
 
 
 class GoToGoal(object):
-    x0, y0, yaw0= 0, 0, 0
+    x0, y0, yaw0= 0.210, -0.265, 0
     goal_des=[0, 0, 0]
     initialize=True
 

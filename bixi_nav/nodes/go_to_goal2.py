@@ -14,7 +14,7 @@ from time import sleep
 import math
 
 class GoToGoal(object):
-    x0, y0, yaw0= 0, 0, 0
+    x0, y0, yaw0= 0.210, -0.265, 0
     goal_des=[0, 0, 0]
     initialize=True
 
@@ -23,8 +23,8 @@ class GoToGoal(object):
     p_ang = 600.0
     i_ang = 0.0
     d_ang = 300.0
-    p_lin = 200.0
-    i_lin = 1.0
+    p_lin = 250.0
+    i_lin = 0.8
     d_lin = 200.0
     lin_vel_thres = 400.0 # max 660
     ang_vel_thres = 200.0 # max 660
@@ -35,7 +35,7 @@ class GoToGoal(object):
     ang_integral = 0.0
     x_integral = 0.0
     y_integral = 0.0
-    lin_integral_threshold = 60.0
+    lin_integral_threshold = 50.0
     ang_integral_threshold = 50.0
 
     heartbeat = Bool()
@@ -120,6 +120,7 @@ class GoToGoal(object):
         ang_error=math.atan2(math.sin(angle-self.yaw0), math.cos(angle-self.yaw0))
 
 
+
         x_derivative = (x_error - self.pre_x_error) / self.del_T
         y_derivative = (y_error - self.pre_y_error) / self.del_T
         ang_derivative = (ang_error - self.pre_ang_error) / self.del_T
@@ -149,6 +150,9 @@ class GoToGoal(object):
             x_linear_vel = self.lin_vel_thres
         elif x_linear_vel < -self.lin_vel_thres:
             x_linear_vel = -self.lin_vel_thres
+
+        if abs(x_linear_vel)>250:
+            x_linear_vel=x_linear_vel*250/abs(x_linear_vel)
         x = self.bias + x_linear_vel
 
         y_linear_vel = (self.p_lin * y_error) + (self.d_lin * y_derivative) + (self.i_lin * self.y_integral)
@@ -156,6 +160,11 @@ class GoToGoal(object):
             y_linear_vel = self.lin_vel_thres
         elif y_linear_vel < -self.lin_vel_thres:
             y_linear_vel = -self.lin_vel_thres
+
+
+        if abs(y_linear_vel)>200:
+            y_linear_vel=y_linear_vel*200/abs(y_linear_vel)
+
         y = self.bias - y_linear_vel
 
         angular_vel = (self.p_ang * ang_error) + (self.d_ang * ang_derivative) + (self.i_ang * self.ang_integral)
@@ -164,6 +173,8 @@ class GoToGoal(object):
         elif angular_vel < -self.ang_vel_thres:
             angular_vel = -self.ang_vel_thres
         theta = self.bias - angular_vel
+
+
 
         msg.buttons = [x, y, theta]
         #self.heartbeat_pub.publish(heartbeat)

@@ -11,6 +11,9 @@ import math
 class TfBroadcaster(object):
     initialize_localizer=True
 
+    #the cg of robot when firstly launched wrt to map frame
+    cg_origin=[0.210, -0.265]
+
     def __init__(self, nodename):
         rospy.init_node('tf_broadcaster')
 
@@ -57,8 +60,8 @@ class TfBroadcaster(object):
 
         #for subsequent, modify the reading to compensate
         else:
-            linear_x=msg.linear.x-self.x_off
-            linear_y=msg.linear.y-self.y_off
+            linear_x=msg.linear.x-self.x_off+self.cg_origin[0]
+            linear_y=msg.linear.y-self.y_off+self.cg_origin[1]
             angular_z=msg.angular.z-self.yaw_off
 
             #broadcast odom tf

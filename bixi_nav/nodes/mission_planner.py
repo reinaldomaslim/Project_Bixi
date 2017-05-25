@@ -13,15 +13,15 @@ import math
 
 
 class MissionPlanner(object):
-    x0, y0, yaw0= 0, 0, 0
+    x0, y0, yaw0= 0.210, -0.265, 0
 
     #motion tolerance
     translation_tolerance=0.3
     angle_tolerance=5*math.pi/180
     
     #stores ideal positions of boxes
-    pushing_pos=[[1.5, 0.4], [1.5, -0.2]]
-    stacking_pos=[[3.2, -1.05], [3.2, 0.55]]
+    pushing_pos=[[0.600, -0.480], [0.600, -0.800], [0.600, -1.160], [0.600, -1.520], [0.600, -1.880], [0.600, -2.140], [0.600, -2.600], [0.600, -2.960]]
+    stacking_pos=[[3.750, -2.230], [3.050, -2.230], [2.550, -2.230], [3.750, -1.530], [3.050, -1.530], [3.750, -0.930], [3.050, -0.930], [2.550, -0.930]]
 
     desired_heading=0 #desired hole normal is opposite
     stacking_heading=desired_heading-math.pi/2
@@ -46,17 +46,20 @@ class MissionPlanner(object):
     n_boxes=3
 
     #ir values, 1 if sth detected, 0 if not
-    ir_push=[1, 1]
-    ir_stack=[1, 1]
+    ir_push=[0, 0]
+    ir_stack=[0, 0]
+
+    #counter
+    first_stack=True
 
     def __init__(self, nodename):        
         rospy.init_node('mission_planner')
         #initialise ideal positions 
 
         rospy.Subscriber("/odometry", Odometry, self.odom_callback, queue_size = 50)
-        #rospy.Subscriber("/limit_switch", Bool, self.limit_switch_callback, queue_size = 10)
+        #rospy.Subscriber("/actuation/limit_switch", Bool, self.limit_switch_callback, queue_size = 10)
         rospy.Subscriber("/edge", PoseStamped, self.edge_callback, queue_size=20)
-        rospy.Subscriber("", , self.ir_callback, queue_size=10)
+        rospy.Subscriber("/actuation/ir_msg", Twist , self.ir_callback, queue_size=10)
 
 
         self.target_goal_pub=rospy.Publisher("/target_goal", PoseStamped, queue_size=10)
@@ -71,25 +74,29 @@ class MissionPlanner(object):
         while not rospy.is_shutdown():
             #print(self.clustered_box_centers)
             #if still have boxes to be pushed, push according to list
-            if push_index<len(self.pushing_pos):    
+
+            #print(self.ir_push)
+
+            if push_index<len(self.pushing_pos)-1:    
                 self.push_box(self.pushing_pos[push_index],  self.stacking_pos[push_index], True)
                 push_index+=1
-
-            else:
-                #if no more boxes to be pushed, perform stacking 
-                if stack_index<self.n_boxes:
-                    if stack_index==0:
-                        self.stack_box(self.stacking_pos[stack_index], second_box=False, with_return=False)
-                    else:
-                        if stack_index%2==0:
-                            self.stack_box(self.stacking_pos[stack_index], second_box=True, with_return=False)
-                        else:
-                            self.stack_box(self.stacking_pos[stack_index], second_box=True, with_return=True)
-                    stack_index+=1
-                else:
-                    #return to origin
-                    self.go_to_goal([0, 0])
-                    break
+            if push_index==len(self.pushing_pos)-1:
+                self.push_box(self.pushing_pos[push_index],  self.stacking_pos[push_index], False)
+            # else:
+            #     #if no more boxes to be pushed, perform stacking 
+            #     if stack_index<self.n_boxes:
+            #         if stack_index==0:
+            #             self.stack_box(self.stacking_pos[stack_index], second_box=False, with_return=False)
+            #         else:
+            #             if stack_index%2==0:
+            #                 self.stack_box(self.stacking_pos[stack_index], second_box=True, with_return=False)
+            #             else:
+            #                 self.stack_box(self.stacking_pos[stack_index], second_box=True, with_return=True)
+            #         stack_index+=1
+            #     else:
+            #         #return to origin
+            #         self.go_to_goal([0, 0])
+            #         break
             
             rospy.sleep(0.1)
 
@@ -98,27 +105,31 @@ class MissionPlanner(object):
         goals=[]
 
         #1. align to an offset from expected
-        d=0.4
+        d=0.5
         goals.append(self.offset_to_center([est_pos[0]-d*math.cos(self.desired_heading), est_pos[1]-d*math.sin(self.desired_heading)], self.desired_heading, self.push_off))
-        self.go_to_goal(goals[0])
+        if self.first_stack == False:
+            self.go_to_goal(goals[0])
         
         #2. match laser detected boxes, align with real position at offset
         k=self.match(est_pos)
         d=0.4
         print(k)
         goals.append(self.offset_to_center([k[0][0]-d*math.cos(k[1]), k[0][1]-d*math.sin(k[1])], k[1], self.push_off))
-        self.go_to_goal(goals[1])
+        if self.first_stack == False:
+            self.go_to_goal(goals[1])
 
         #3. finely adjust and engage box by moving towards it
-        self.push_adjust(k, est_pos)
-
+        if self.first_stack == False:
+            self.push_adjust(k, est_pos)
+        else:
+            self.first_stack=False
         #4. push forward
-        d=-1      
+        d=-1.15      
         goals.append(self.offset_to_center([k[0][0]-d*math.cos(self.desired_heading), k[0][1]-d*math.sin(self.desired_heading)], self.desired_heading, self.push_off))
         self.go_to_goal(goals[2])        
 
         #5. diagonal to an offset from destination
-        d=0.8
+        d=0.5
         goals.append(self.offset_to_center([dest_pos[0]-d*math.cos(self.desired_heading), dest_pos[1]-d*math.sin(self.desired_heading)], self.desired_heading, self.push_off))
         self.go_to_goal(goals[3])  
 
@@ -139,20 +150,25 @@ class MissionPlanner(object):
             self.go_to_goal(goals[0])
 
 
-    def push_adjust(last_k, est_pos):
+    def push_adjust(self, last_k, est_pos):
+        print(self.ir_push)
         k=last_k
         #0 means free, element 0 is left, element 1 is right
         while self.ir_push[0]!=0 or self.ir_push[1]!=0 and not rospy.is_shutdown():
+            print("adjust")
+            print(self.ir_push)
             #get the vy from ir, while yawing direction from k
             if self.ir_push[0]!=0 and self.ir_push[1]==0:
+                print("adjusting to left")
                 #left not free, move left in k[1] direction
-                d=0.02
-                goal=self.offset_to_center([self.x0-d*math.sin(k[1]), self.y0+d*math.cos(k[1])], k[1], self.push_off)
+                d=0.03
+                goal=[self.x0-d*math.sin(k[1]), self.y0+d*math.cos(k[1]), k[1]]
                 self.go_to_goal(goal)
             elif self.ir_push[0]==0 and self.ir_push[1]!=0:
                 #right not free, move right in k[1] direction
-                d=0.02
-                goal=self.offset_to_center([self.x0+d*math.sin(k[1]), self.y0-d*math.cos(k[1])], k[1], self.push_off)
+                print("adjusting to right")
+                d=0.03
+                goal=[self.x0+d*math.sin(k[1]), self.y0-d*math.cos(k[1]), k[1]]
                 self.go_to_goal(goal)
             else:
                 #realign with lidar
@@ -164,8 +180,10 @@ class MissionPlanner(object):
             if new_k[0][0]!=est_pos[0]:
                 k=new_k
 
+        print("aligned")
         #after aligned, engage box
-        goal=self.offset_to_center([k[0][0], k[0][1]], k[1], self.push_off)
+        d=0.4
+        goal=[self.x0+d*math.cos(k[1]), self.y0+d*math.sin(k[1]), k[1]]
         self.go_to_goal(goal)
 
 
@@ -218,13 +236,6 @@ class MissionPlanner(object):
 
 
 
-
-
-
-
-    def stack_adjust():
-
-
     def offset_to_center(self, position, heading, offset):
         #calculate where the center of robot must be given an offset position
         center_pose=[position[0]-offset[0]*math.cos(heading)+offset[1]*math.sin(heading), position[1]-offset[0]*math.sin(heading)-offset[1]*math.cos(heading), heading]
@@ -260,6 +271,20 @@ class MissionPlanner(object):
             return box_pos, self.desired_heading
         else:            
             return self.clustered_box_centers[index], self.clustered_box_headings[index]
+
+    def ir_callback(self, msg):
+
+
+        if msg.linear.x>230:
+            self.ir_push[0]=1
+        else:
+            self.ir_push[0]=0
+
+        if msg.linear.y>230:
+            self.ir_push[1]=1
+        else:
+            self.ir_push[1]=0
+
 
     def edge_callback(self, msg):
         n_edge=40
