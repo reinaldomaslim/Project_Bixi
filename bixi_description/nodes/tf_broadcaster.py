@@ -12,7 +12,7 @@ class TfBroadcaster(object):
     initialize_localizer=True
 
     #the cg of robot when firstly launched wrt to map frame
-    cg_origin=[0.210, -0.265]
+    cg_origin=[0.210, 0.265]
 
     def __init__(self, nodename):
         rospy.init_node('tf_broadcaster')
@@ -41,11 +41,11 @@ class TfBroadcaster(object):
 
 
             #will be given by rplidar slam gmapping
-            br.sendTransform((0, 0, 0),
-                             tf.transformations.quaternion_from_euler(0, 0, 0),
-                             rospy.Time.now(),
-                             "odom",
-                             "map")
+            # br.sendTransform((0, 0, 0),
+            #                  tf.transformations.quaternion_from_euler(0, 0, 0),
+            #                  rospy.Time.now(),
+            #                  "odom",
+            #                  "map")
 
             r.sleep()
 
@@ -60,8 +60,8 @@ class TfBroadcaster(object):
 
         #for subsequent, modify the reading to compensate
         else:
-            linear_x=msg.linear.x-self.x_off+self.cg_origin[0]
-            linear_y=msg.linear.y-self.y_off+self.cg_origin[1]
+            linear_x=msg.linear.x-self.x_off-self.cg_origin[0]
+            linear_y=msg.linear.y-self.y_off-self.cg_origin[1]
             angular_z=msg.angular.z-self.yaw_off
 
             #broadcast odom tf

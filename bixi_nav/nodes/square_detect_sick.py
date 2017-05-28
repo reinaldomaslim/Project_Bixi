@@ -32,7 +32,9 @@ class FindEdges(object):
 
         rospy.Subscriber("/odometry", Odometry, self.odom_callback, queue_size = 50)
         rospy.Subscriber("/scan", LaserScan, self.scanCallback, queue_size = 50)
+        self.filtered_scan_pub=rospy.Publisher("/filtered_scan", LaserScan, queue_size=50)
         self.box_pose_pub=rospy.Publisher("/edge", PoseStamped, queue_size=10)
+
 
         rate=rospy.Rate(10)
     
@@ -42,6 +44,19 @@ class FindEdges(object):
             rate.sleep()
 
     def scanCallback(self, msg):
+        new_msg=LaserScan()
+        new_msg.header=msg.header
+        new_msg.angle_min=msg.angle_min+120*msg.angle_increment
+        new_msg.angle_max=msg.angle_max
+        new_msg.angle_increment=msg.angle_increment
+        new_msg.scan_time=msg.scan_time
+        new_msg.range_min=msg.range_min
+        new_msg.range_max=msg.range_max
+        new_msg.ranges=msg.ranges[0:len(msg.ranges)-120]
+        new_msg.intensities=msg.intensities[0:len(msg.ranges)-120]
+        self.filtered_scan_pub.publish(new_msg)
+
+
         window_length=4
 
         resolution=0.01
@@ -90,6 +105,9 @@ class FindEdges(object):
         higher_reso = laserGrid
         self.boxes_position=self.detectBox(higher_reso, resolution)
         self.printBox(self.boxes_position)
+
+
+
 
 
     def detectBox(self, grid, resolution):

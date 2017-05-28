@@ -14,7 +14,7 @@ from time import sleep
 import math
 
 class GoToGoal(object):
-    x0, y0, yaw0= 0.210, -0.265, 0
+    x0, y0, yaw0= 0, 0, 0
     goal_des=[0, 0, 0]
     initialize=True
 
@@ -23,9 +23,9 @@ class GoToGoal(object):
     p_ang = 600.0
     i_ang = 0.0
     d_ang = 300.0
-    p_lin = 250.0
-    i_lin = 0.8
-    d_lin = 200.0
+    p_lin = 300.0
+    i_lin = 0.6
+    d_lin = 220.0
     lin_vel_thres = 400.0 # max 660
     ang_vel_thres = 200.0 # max 660
     bias = 1024.0
@@ -102,7 +102,7 @@ class GoToGoal(object):
 
         theta = self.bias - angular_vel
 
-        msg.buttons = [self.bias, self.bias, theta]
+        msg.buttons = [self.bias, theta, self.bias]
         #self.heartbeat_pub.publish(heartbeat)
         #sleep(heartbeat_time);
         self.cmd_vel_pub.publish(msg)
@@ -151,8 +151,10 @@ class GoToGoal(object):
         elif x_linear_vel < -self.lin_vel_thres:
             x_linear_vel = -self.lin_vel_thres
 
-        if abs(x_linear_vel)>250:
+        if abs(x_linear_vel)>380:
             x_linear_vel=x_linear_vel*250/abs(x_linear_vel)
+
+
         x = self.bias + x_linear_vel
 
         y_linear_vel = (self.p_lin * y_error) + (self.d_lin * y_derivative) + (self.i_lin * self.y_integral)
@@ -162,8 +164,10 @@ class GoToGoal(object):
             y_linear_vel = -self.lin_vel_thres
 
 
-        if abs(y_linear_vel)>200:
+        if abs(y_linear_vel)>220:
             y_linear_vel=y_linear_vel*200/abs(y_linear_vel)
+
+
 
         y = self.bias - y_linear_vel
 
@@ -175,8 +179,8 @@ class GoToGoal(object):
         theta = self.bias - angular_vel
 
 
-
-        msg.buttons = [x, y, theta]
+        #
+        msg.buttons = [y, theta, x]
         #self.heartbeat_pub.publish(heartbeat)
         #sleep(heartbeat_time);
         self.cmd_vel_pub.publish(msg)
