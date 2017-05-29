@@ -23,11 +23,16 @@ class GoToGoal(object):
     p_ang = 600.0
     i_ang = 0.0
     d_ang = 300.0
-    p_lin = 300.0
-    i_lin = 0.6
-    d_lin = 220.0
-    lin_vel_thres = 400.0 # max 660
-    ang_vel_thres = 200.0 # max 660
+    p_x = 300.0
+    i_x = 0.6
+    d_x = 240.0
+
+    p_y = 310.0
+    i_y = 1.1
+    d_y = 240.0
+
+    lin_vel_thres = 450.0 # max 660
+    ang_vel_thres = 300.0 # max 660
     bias = 1024.0
     pre_ang_error = 0.0
     pre_x_error = 0.0
@@ -42,15 +47,6 @@ class GoToGoal(object):
     heartbeat.data = True
     heartbeat_time = 0.005  # in second
 
-    # timeout parameters and attributes
-    n = 0
-    scale = 1.1
-    timeout_period = 3.0 # in second
-    previous_time = 0.0
-    previous_y_error = 0.0
-    current_y_error = 0.0
-    y_error_threshold = 0.1
-
     def __init__(self, nodename):
         heading_threshold=5*math.pi/180
 
@@ -64,26 +60,15 @@ class GoToGoal(object):
         #self.heartbeat_pub=rospy.Publisher("/heartbeat", Bool, queue_size=2)
 
         r = rospy.Rate(1/self.del_T*1000)
-        previous_time = rospy.get_time()
-
-
+        stop=True
 
         while not rospy.is_shutdown():
+            if self.stop==True:
+                self.neutral_command()
+                print("stop")
+                continue
+
             print(self.goal_des)
-
-            if rospy.get_time() - self.previous_time > self.timeout_period :
-                self.previous_time = rospy.get_time()
-
-                if abs(self.current_y_error-self.previous_y_error) < y_error_threshold:
-                    self.n++
-                else:
-                    self.n = 0
-
-                self.previous_error = self.current_y_error
-
-
-
-
             #if direction not similar, rotate
             if abs(self.yaw0-self.goal_des[2])>heading_threshold:
                 self.rotate(self.goal_des[2])
@@ -91,15 +76,26 @@ class GoToGoal(object):
                 #else translate to goal    
                 self.translate(self.goal_des[0], self.goal_des[1], self.goal_des[2])
 
-
             r.sleep()
 
     def goal_callback(self, msg):
+
+        #if position z equals to 1, means stop
+        if msg.pose.position.z==1:
+            self.stop=True:
+            return
+        else:
+            self.stop=False
 
         #store target goal as private variable
         _, _, yaw_des = euler_from_quaternion((msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w))
         self.goal_des=[msg.pose.position.x, msg.pose.position.y, yaw_des]
 
+
+    def neutral_command(self):
+        msg=Joy()
+        msg.buttons = [self.bias, self.bias, self.bias]
+        self.cmd_vel_pub.publish(msg)
 
     def rotate(self, angle):
 
@@ -171,29 +167,31 @@ class GoToGoal(object):
             self.ang_integral = -self.ang_integral_threshold
         
         # output velocities
-        x_linear_vel = (self.p_lin * x_error) + (self.d_lin * x_derivative) + (self.i_lin * self.x_integral)
+        x_linear_vel = (self.p_x * x_error) + (self.d_x * x_derivative) + (self.i_x * self.x_integral)
         if x_linear_vel > self.lin_vel_thres:
             x_linear_vel = self.lin_vel_thres
         elif x_linear_vel < -self.lin_vel_thres:
             x_linear_vel = -self.lin_vel_thres
 
-        if abs(x_linear_vel)>300:
-            x_linear_vel=x_linear_vel*300/abs(x_linear_vel)
+        if abs(x_linear_vel)>450:
+            x_linear_vel=x_linear_vel*450/abs(x_linear_vel)
 
 
         x = self.bias + x_linear_vel
 
-        y_linear_vel = (self.p_lin * y_error) + (self.d_lin * y_derivative) + (self.i_lin * self.y_integral)
+        y_linear_vel = (self.p_y * y_error) + (self.d_y * y_derivative) + (self.i_y * self.y_integral)
         if y_linear_vel > self.lin_vel_thres:
             y_linear_vel = self.lin_vel_thres
         elif y_linear_vel < -self.lin_vel_thres:
             y_linear_vel = -self.lin_vel_thres
 
-        #max velocity
-        if abs(y_linear_vel)>250:
-            y_linear_vel=y_linear_vel*250/abs(y_linear_vel)
 
-        y = self.bias - (self.scale**self.n)*y_linear_vel
+        if abs(y_linear_vel)>220:
+            y_linear_vel=y_linear_vel*220/abs(y_linear_vel)
+
+
+
+        y = self.bias - y_linear_vel
 
         angular_vel = (self.p_ang * ang_error) + (self.d_ang * ang_derivative) + (self.i_ang * self.ang_integral)
         if angular_vel > self.ang_vel_thres:
@@ -201,10 +199,6 @@ class GoToGoal(object):
         elif angular_vel < -self.ang_vel_thres:
             angular_vel = -self.ang_vel_thres
         theta = self.bias - angular_vel
-
-
-        self.current_y_error = y_error
-
 
 
         #
@@ -239,6 +233,5 @@ if __name__ == '__main__':
         GoToGoal(nodename="go_to_goal")
     except rospy.ROSInterruptException:
         rospy.loginfo("Go to goal finished.")
-
 
 
