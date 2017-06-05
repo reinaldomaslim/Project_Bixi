@@ -20,19 +20,19 @@ class GoToGoal(object):
 
     ## PID constants
     del_T = 100.0   # time step in ms
-    p_ang = 600.0
+    p_ang = 450.0
     i_ang = 0.0
-    d_ang = 300.0
-    p_x = 300.0
+    d_ang = 250.0
+    p_x = 250.0
     i_x = 0.6
-    d_x = 240.0
+    d_x = 200.0
 
-    p_y = 310.0
-    i_y = 1.1
-    d_y = 240.0
+    p_y = 240.0
+    i_y = 0.9
+    d_y = 200.0
 
-    lin_vel_thres = 450.0 # max 660
-    ang_vel_thres = 300.0 # max 660
+    lin_vel_thres = 350.0 # max 660
+    ang_vel_thres = 130.0 # max 660
     bias = 1024.0
     pre_ang_error = 0.0
     pre_x_error = 0.0
@@ -47,6 +47,9 @@ class GoToGoal(object):
     heartbeat.data = True
     heartbeat_time = 0.005  # in second
 
+    limit_sense=False
+    job_status=False
+
     def __init__(self, nodename):
         heading_threshold=5*math.pi/180
 
@@ -55,18 +58,27 @@ class GoToGoal(object):
         rospy.Subscriber("/odometry", Odometry, self.odom_callback, queue_size = 50)
         rospy.sleep(1)
         rospy.Subscriber("/target_goal", PoseStamped, self.goal_callback , queue_size=10)
+        rospy.Subscriber("/actuation/limit_sense", Bool, self.limit_switch_callback, queue_size = 5)
+        rospy.Subscriber("/actuation/job_status", Bool, self.job_status_callback, queue_size = 10)
+
 
         self.cmd_vel_pub=rospy.Publisher("/vel_cmd", Joy, queue_size=10)
         #self.heartbeat_pub=rospy.Publisher("/heartbeat", Bool, queue_size=2)
 
         r = rospy.Rate(1/self.del_T*1000)
-        stop=True
+
 
         while not rospy.is_shutdown():
-            if self.stop==True:
-                self.neutral_command()
-                print("stop")
-                continue
+
+            if self.limit_sense==True:
+                #stop until job status
+
+                while self.job_status==False and not rospy.is_shutdown():
+                    self.stop()
+                    rospy.sleep(1)
+
+                self.limit_sense=False
+                self.job_status=False
 
             print(self.goal_des)
             #if direction not similar, rotate
@@ -78,14 +90,13 @@ class GoToGoal(object):
 
             r.sleep()
 
-    def goal_callback(self, msg):
+    def stop(self):
+        print("stop")
+        msg=Joy()
+        msg.buttons = [self.bias, self.bias, self.bias]
+        self.cmd_vel_pub.publish(msg)
 
-        #if position z equals to 1, means stop
-        if msg.pose.position.z==1:
-            self.stop=True:
-            return
-        else:
-            self.stop=False
+    def goal_callback(self, msg):
 
         #store target goal as private variable
         _, _, yaw_des = euler_from_quaternion((msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w))
@@ -226,7 +237,11 @@ class GoToGoal(object):
             self.goal_des=[self.x0, self.y0, self.yaw0]
             self.initialize=False
 
+    def limit_switch_callback(self, msg):
+        self.limit_sense = msg.data
 
+    def job_status_callback(self, msg):
+        self.job_status = msg.data
 
 if __name__ == '__main__':
     try:
